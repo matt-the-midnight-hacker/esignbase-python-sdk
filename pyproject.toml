@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=80.9", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "esignbase-sdk"
+version = "1.0.0"
+description = "SDK Package for the eSignBase API"
+authors = [{ name = "Matthias Meß", email = "info@esignbase.com" }]
+readme = "README.md"
+requires-python = ">=3.14,<4.0"
+
+dependencies = [
+  "requests>=2.32.5,<3.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "isort",
+  "black",
+]
+
+[tool.setuptools]
+
+[tool.setuptools.packages]
+find = { where = ["esignbase-sdk"], namespaces = true } # Enable namespace package discovery
+
+
+[tool.setuptools.exclude-package-data]
+"*" = [
+  "__pycache__",
+  "*.pyc",
+  "*.pyo",
+  "*.pyd"
+]
+
+
+[tool.black]
+line-length = 100
+target-version = ['py314']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = []
+classes = ["IO"]

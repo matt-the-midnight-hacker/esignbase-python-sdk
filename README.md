@@ -1,2 +1,2 @@
 # esignbase-python-sdk
-A API Client for the eSignBase API
+API Client for the [eSignBase](https://esignbase.com) API
