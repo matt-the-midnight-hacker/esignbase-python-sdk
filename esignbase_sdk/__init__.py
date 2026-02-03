@@ -2,7 +2,7 @@ from base64 import b64encode
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
-from typing import Any, Final, Optional
+from typing import Any, Final, Optional, cast
 
 import requests
 
@@ -32,6 +32,11 @@ class OAuth2Client:
     _access_token: Optional[str] = None
     scope: list[Scope] = field(default_factory=list[Scope])
 
+    @property
+    def is_connected(self) -> bool:
+        """True when an access token exists."""
+        return bool(self._access_token)
+
 
 @dataclass(slots=True)
 class Recipient:
@@ -57,6 +62,37 @@ def _validate(client: "OAuth2Client"):
         raise ESignBaseSDKError(
             "Username and password are required for authorization code grant type"
         )
+
+
+def _ensure_connected(client: OAuth2Client):
+    if not client or not client.is_connected:
+        raise ESignBaseSDKError("OAuth2Client is not connected. Call connect() first.")
+
+
+def _api_request(client: OAuth2Client, method: str, path: str, retry: bool = True, **kwargs):
+    _ensure_connected(client)
+    headers = cast(dict[str, str], kwargs.pop("headers", {}) or {})
+    # ensure Authorization header present
+    headers.setdefault("Authorization", f"Bearer {client._access_token}")
+    kwargs["headers"] = headers
+    url = f"{BASE_URL}{path.lstrip('/')}"
+    response = requests.request(method=method, url=url, timeout=15, **kwargs)
+    # try to reconnect once on unauthorized
+    if response.status_code == 401 and retry:
+        try:
+            connect(client)
+        except Exception:
+            # bubble original auth error if reconnect failed
+            pass
+        # update header with new token (connect may have set it)
+        headers["Authorization"] = (
+            f"Bearer {client._access_token}"
+            if client._access_token
+            else headers.get("Authorization", "")
+        )
+        kwargs["headers"] = headers
+        response = requests.request(method=method, url=url, timeout=15, **kwargs)
+    return response
 
 
 def connect(client: OAuth2Client):
@@ -88,39 +124,22 @@ def connect(client: OAuth2Client):
 
 
 def get_templates(client: OAuth2Client) -> dict[str, Any]:
-    response = requests.get(
-        url=f"{BASE_URL}api/templates",
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
-    )
+    response = _api_request(client, "get", "api/templates")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get templates: {response.text}")
     return response.json()
 
 
 def get_template(client: OAuth2Client, template_id: str) -> dict[str, Any]:
-    response = requests.get(
-        url=f"{BASE_URL}api/template/{template_id}",
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
-    )
+    response = _api_request(client, "get", f"api/template/{template_id}")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get template: {response.text}")
     return response.json()
 
 
 def get_documents(client: OAuth2Client, limit: int, offset: int) -> dict[str, Any]:
-    response = requests.get(
-        url=f"{BASE_URL}api/documents",
-        params={"limit": limit, "offset": offset},
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
+    response = _api_request(
+        client, "get", "api/documents", params={"limit": limit, "offset": offset}
     )
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get documents: {response.text}")
@@ -128,13 +147,7 @@ def get_documents(client: OAuth2Client, limit: int, offset: int) -> dict[str, An
 
 
 def get_document(client: OAuth2Client, document_id: str) -> dict[str, Any]:
-    response = requests.get(
-        url=f"{BASE_URL}api/document/{document_id}",
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
-    )
+    response = _api_request(client, "get", f"api/document/{document_id}")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get document: {response.text}")
     return response.json()
@@ -169,14 +182,12 @@ def create_document(
     if expiration_date:
         request_data["expiration_date"] = expiration_date.strftime("%Y-%m-%dT%H:%M:%S%z")
 
-    response = requests.post(
-        url=f"{BASE_URL}api/document",
+    response = _api_request(
+        client,
+        "post",
+        "api/document",
         json=request_data,
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-            "Content-Type": "application/json",
-        },
-        timeout=15,
+        headers={"Content-Type": "application/json"},
     )
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to create document: {response.text}")
@@ -184,26 +195,14 @@ def create_document(
 
 
 def delete_document(client: OAuth2Client, document_id: str) -> None:
-    response = requests.delete(
-        url=f"{BASE_URL}api/document/{document_id}",
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
-    )
+    response = _api_request(client, "delete", f"api/document/{document_id}")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to delete document: {response.text}")
     return None
 
 
 def get_credits(client: OAuth2Client) -> dict[str, Any]:
-    response = requests.get(
-        url=f"{BASE_URL}api/credits",
-        headers={
-            "Authorization": f"Bearer {client._access_token}",
-        },
-        timeout=15,
-    )
+    response = _api_request(client, "get", "api/credits")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get credits: {response.text}")
     return response.json()
