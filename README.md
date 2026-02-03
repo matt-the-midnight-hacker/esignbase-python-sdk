@@ -23,7 +23,7 @@ Defines the available API permission scopes:
 * READ: Read-only access
 * CREATE_DOCUMENT: Permission to create documents
 * DELETE: Permission to delete documents
-* SANDBOX: Access to sandbox environment
+* SANDBOX: Access to the sandbox environment, use this scope for testing
 
 **OAuth2Client**
 
@@ -38,6 +38,8 @@ user_name (Optional[str]) # Username (required AUTHORIZATION_CODE)
 password (Optional[str]) # Password (required AUTHORIZATION_CODE)
 scope (list[Scope]) # List of requested API scopes
 ```
+Retrieve your Client ID and Client Secret at https://app.esignbase.com/oauth2/client by creating an
+OAuth2 Client Configuration.
 
 **Recipient**
 
@@ -296,13 +298,14 @@ recipients = [
         first_name="Alice",
         last_name="Smith",
         role_name="Signer",
-        locale="en-US"
+        locale="en"
     )
 ]
+template_id = templates[0]["id"]
 
 document = create_document(
     client=client,
-    template_id="template_456",
+    template_id=template_id,
     document_name="NDA Agreement",
     recipients=recipients
 )
