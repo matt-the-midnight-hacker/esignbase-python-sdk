@@ -10,10 +10,10 @@ Full REST API documentation is available at https://esignbase.com/en/api_documen
 **GrantType** (Enum)
 
 Defines the available OAuth2 grant types:
-```
-CLIENT_CREDENTIALS: For server-to-server authentication
-AUTHORIZATION_CODE: For user-specific authentication
-```
+
+* CLIENT_CREDENTIALS: For server-to-server authentication
+* AUTHORIZATION_CODE: For user-specific authentication
+
 
 **Scope** (Enum)
 

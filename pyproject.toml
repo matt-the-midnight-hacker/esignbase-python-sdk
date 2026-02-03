@@ -23,7 +23,7 @@ dev = [
 [tool.setuptools]
 
 [tool.setuptools.packages]
-find = { where = ["esignbase-sdk"], namespaces = true } # Enable namespace package discovery
+find = { where = ["esignbase_sdk"], namespaces = true } # Enable namespace package discovery
 
 
 [tool.setuptools.exclude-package-data]
