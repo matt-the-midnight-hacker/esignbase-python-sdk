@@ -50,7 +50,7 @@ class TestEsignBaseSDK(TestCase):
             esignbase_sdk._validate(client)
 
     @patch("esignbase_sdk.requests.post")
-    def test_connect_sets_access_token_on_success(self, post_mock):
+    def test_connect_sets_access_token_on_success(self, post_mock: Mock):
         mock_resp = Mock()
         mock_resp.ok = True
         mock_resp.json.return_value = {"access_token": "abc123"}
@@ -66,7 +66,7 @@ class TestEsignBaseSDK(TestCase):
         self.assertEqual(client._access_token, "abc123")
 
     @patch("esignbase_sdk.requests.post")
-    def test_connect_raises_on_http_error(self, post_mock):
+    def test_connect_raises_on_http_error(self, post_mock: Mock):
         mock_resp = Mock()
         mock_resp.ok = False
         mock_resp.text = "bad"
@@ -81,12 +81,12 @@ class TestEsignBaseSDK(TestCase):
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk.connect(client)
 
-    @patch("esignbase_sdk.requests.get")
-    def test_get_templates_success_and_error(self, get_mock):
+    @patch("esignbase_sdk.requests.request")
+    def test_get_templates_success_and_error(self, get_mock: Mock):
         # success
         mock_resp = Mock()
         mock_resp.ok = True
-        mock_resp.json.return_value = {"templates": []}
+        mock_resp.json.return_value = []
         get_mock.return_value = mock_resp
 
         client = esignbase_sdk.OAuth2Client(
@@ -97,7 +97,7 @@ class TestEsignBaseSDK(TestCase):
         )
         client._access_token = "tkn"
         res = esignbase_sdk.get_templates(client)
-        self.assertIn("templates", res)
+        self.assertEqual(res, [])
 
         # error
         mock_resp = Mock()

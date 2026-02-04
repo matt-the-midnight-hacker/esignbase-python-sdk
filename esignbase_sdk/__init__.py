@@ -1,12 +1,12 @@
 from base64 import b64encode
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 from typing import Any, Final, Optional, cast
 
 import requests
 
-BASE_URL: Final[str] = "https://app.esignbase.com/api/"
+BASE_URL: Final[str] = "https://app.esignbase.com/"
 
 
 class GrantType(StrEnum):
@@ -58,7 +58,9 @@ def _validate(client: "OAuth2Client"):
         raise ESignBaseSDKError("Client ID is required")
     if not client.secret:
         raise ESignBaseSDKError("Client secret is required")
-    if client.grant_type == GrantType.AUTHORIZATION_CODE:
+    if client.grant_type == GrantType.AUTHORIZATION_CODE and (
+        not client.user_name or not client.password
+    ):
         raise ESignBaseSDKError(
             "Username and password are required for authorization code grant type"
         )
@@ -123,7 +125,7 @@ def connect(client: OAuth2Client):
     client._access_token = response.json().get("access_token")
 
 
-def get_templates(client: OAuth2Client) -> dict[str, Any]:
+def get_templates(client: OAuth2Client) -> list[dict[str, Any]]:
     response = _api_request(client, "get", "api/templates")
     if not response.ok:
         raise ESignBaseSDKError(f"Failed to get templates: {response.text}")
@@ -180,6 +182,9 @@ def create_document(
         request_data["user_defined_metadata"] = user_defined_metadata
 
     if expiration_date:
+        # ensure expiration_date is timezone-aware; assume UTC for naive datetimes
+        if expiration_date.tzinfo is None:
+            expiration_date = expiration_date.replace(tzinfo=timezone.utc)
         request_data["expiration_date"] = expiration_date.strftime("%Y-%m-%dT%H:%M:%S%z")
 
     response = _api_request(

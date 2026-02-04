@@ -88,7 +88,7 @@ connect(client)
 ---
 
 ```python
-def get_templates(client: OAuth2Client) -> dict[str, Any]
+def get_templates(client: OAuth2Client) -> list[dict[str, Any]]
 ```
 
 
@@ -99,7 +99,7 @@ Parameters:
 client: Authenticated OAuth2Client instance
 ```
 
-Returns Dictionary containing template data.
+Returns A list of dictionaries containing template data.
 
 Raises:
 
@@ -139,7 +139,7 @@ Parameters:
 
 Returns:
 
-    Dictionary containing document list and pagination info
+    Dictionary containing document list and pagination info `{documents: [...]}`
 
 Raises:
 
@@ -192,7 +192,7 @@ Parameters:
 
 Returns:
 
-    Dictionary containing the created document details
+    Dictionary containing the created document id and current document status
 
 Raises:
 
