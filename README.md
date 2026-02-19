@@ -337,9 +337,7 @@ delete_document(client, document["id"])
 
 ## Developer Notes:
 
-You should work ina venv..
-
-How to build the package:
+To build the package, run the following commands inside a virtual environment from the directory containing this README file.
 ```bash
 python -m pip install --upgrade build
 python -m build --wheel
