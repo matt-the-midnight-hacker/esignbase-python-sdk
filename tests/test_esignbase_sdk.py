@@ -202,7 +202,7 @@ class TestEsignBaseSDK(TestCase):
         request_mock.side_effect = [resp1, resp2]
 
         def do_connect(c):
-            c._access_token = "newtoken"
+            c.access_token = "newtoken"
 
         connect_mock.side_effect = do_connect
 

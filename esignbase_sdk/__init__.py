@@ -127,7 +127,8 @@ def connect(client: OAuth2Client):
     )
     if not response.ok:
         raise ESignBaseSDKError(
-            f"Failed to connect to ESignBase API: {response.text}", status_code=response.status_code
+            f"Failed to connect to ESignBase API: {response.text}",
+            status_code=response.status_code,
         )
     client.access_token = response.json().get("access_token")
 
@@ -154,7 +155,8 @@ def get_documents(client: OAuth2Client, limit: int, offset: int) -> dict[str, An
     )
     if not response.ok:
         raise ESignBaseSDKError(
-            f"Failed to get documents: {response.text}", status_code=response.status_code
+            f"Failed to get documents: {response.text}",
+            status_code=response.status_code,
         )
     return response.json()
 
@@ -210,7 +212,8 @@ def create_document(  # pylint: disable=too-many-arguments
     )
     if not response.ok:
         raise ESignBaseSDKError(
-            f"Failed to create document: {response.text}", status_code=response.status_code
+            f"Failed to create document: {response.text}",
+            status_code=response.status_code,
         )
     return response.json()
 
@@ -219,7 +222,8 @@ def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes
     response = _api_request(client, "get", f"api/document/download/{document_id}", stream=True)
     if not response.ok:
         raise ESignBaseSDKError(
-            f"Failed to download document: {response.text}", status_code=response.status_code
+            f"Failed to download document: {response.text}",
+            status_code=response.status_code,
         )
 
     yield from response.iter_content(chunk_size=8192)
@@ -229,7 +233,8 @@ def delete_document(client: OAuth2Client, document_id: str) -> None:
     response = _api_request(client, "delete", f"api/document/{document_id}")
     if not response.ok:
         raise ESignBaseSDKError(
-            f"Failed to delete document: {response.text}", status_code=response.status_code
+            f"Failed to delete document: {response.text}",
+            status_code=response.status_code,
         )
 
 

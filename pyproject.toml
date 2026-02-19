@@ -53,3 +53,13 @@ dev = [
   "isort",
   "pyright",
 ]
+
+[tool.black]
+line-length = 100
+target-version = ['py314']
+
+[tool.isort]
+profile = "black"
+line_length = 100
+known_first_party = []
+classes = ["IO"]
