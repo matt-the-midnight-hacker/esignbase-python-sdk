@@ -315,9 +315,10 @@ Complete Example
 ```python
 
 from datetime import datetime
+import esignbase_sdk
 
 # Setup client
-client = OAuth2Client(
+client = esignbase_sdk.OAuth2Client(
     id="your_client_id",
     secret="your_client_secret",
     grant_type=GrantType.CLIENT_CREDENTIALS,
@@ -325,14 +326,14 @@ client = OAuth2Client(
 )
 
 # Authenticate
-connect(client)
+esignbase_sdk.connect(client)
 
 # Get available templates
-templates = get_templates(client)
+templates = esignbase_sdk.get_templates(client)
 
 # Create a document
 recipients = [
-    Recipient(
+    esignbase_sdk.Recipient(
         email="alice@example.com",
         first_name="Alice",
         last_name="Smith",
@@ -342,7 +343,7 @@ recipients = [
 ]
 template_id = templates[0]["id"]
 
-document = create_document(
+document = esignbase_sdk.create_document(
     client=client,
     template_id=template_id,
     document_name="NDA Agreement",
@@ -350,16 +351,18 @@ document = create_document(
 )
 
 # Check document status
-document_details = get_document(client, document["id"])
+document_details = esignbase_sdk.get_document(client, document["id"])
 
 # Delete the document (if needed)
-delete_document(client, document["id"])
+esignbase_sdk.delete_document(client, document["id"])
 ```
 
 
 ## Developer Notes:
 
-To build the package, run the following commands inside a virtual environment from the directory containing this README file.
+To build the package, run the following commands inside a virtual environment from the directory
+containing this README file.
+
 ```bash
 python -m pip install --upgrade build
 python -m build --wheel
