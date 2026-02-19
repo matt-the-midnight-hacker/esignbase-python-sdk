@@ -219,7 +219,7 @@ def create_document(  # pylint: disable=too-many-arguments
 
 
 def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes]:
-    response = _api_request(client, "get", f"api/document/download/{document_id}", stream=True)
+    response = _api_request(client, "get", f"api/document/{document_id}/download", stream=True)
     if not response.ok:
         raise ESignBaseSDKError(
             f"Failed to download document: {response.text}",
