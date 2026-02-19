@@ -2,6 +2,7 @@
 name = "esignbase-sdk"
 version = "1.0.1"
 license = "MIT"
+license-files = ["LICENSE"]
 description = "Python SDK for eSignBase – eIDAS-compliant digital signatures and GDPR-ready electronic signing via REST API."
 authors = [{ name = "Matthias Meß", email = "info@esignbase.com" }]
 readme = "README.md"
