@@ -1,0 +1,32 @@
+name: Linting Checks
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.14"]
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install .[dev]
+    - name: Analysing the code with pylint
+      run: |
+        pylint $(git ls-files '*.py')
+    - name: run type checking with pyright
+      run: |
+        pyright esignbase_sdk/
+    - name: run code style checks with black
+      run: |
+        black --check --diff esignbase_sdk
+    - name: check if imports are sorted properly
+      run: |
+        isort --only-modified --diff esignbase_sdk

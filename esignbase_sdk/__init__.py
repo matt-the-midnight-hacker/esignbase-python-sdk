@@ -2,7 +2,7 @@ from base64 import b64encode
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from enum import StrEnum
-from typing import Any, Final, Optional, cast
+from typing import Any, Final, Generator, Optional, cast
 
 import requests
 
@@ -48,7 +48,11 @@ class Recipient:
 
 
 class ESignBaseSDKError(Exception):
-    pass
+    status_code: Optional[int] = None
+
+    def __init__(self, message: str, status_code: Optional[int] = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def _validate(client: "OAuth2Client"):
@@ -121,7 +125,9 @@ def connect(client: OAuth2Client):
         timeout=15,
     )
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to connect to ESignBase API: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to connect to ESignBase API: {response.text}", status_code=response.status_code
+        )
     client._access_token = response.json().get("access_token")
 
 
@@ -135,7 +141,9 @@ def get_templates(client: OAuth2Client) -> list[dict[str, Any]]:
 def get_template(client: OAuth2Client, template_id: str) -> dict[str, Any]:
     response = _api_request(client, "get", f"api/template/{template_id}")
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to get template: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to get template: {response.text}", status_code=response.status_code
+        )
     return response.json()
 
 
@@ -144,14 +152,18 @@ def get_documents(client: OAuth2Client, limit: int, offset: int) -> dict[str, An
         client, "get", "api/documents", params={"limit": limit, "offset": offset}
     )
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to get documents: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to get documents: {response.text}", status_code=response.status_code
+        )
     return response.json()
 
 
 def get_document(client: OAuth2Client, document_id: str) -> dict[str, Any]:
     response = _api_request(client, "get", f"api/document/{document_id}")
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to get document: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to get document: {response.text}", status_code=response.status_code
+        )
     return response.json()
 
 
@@ -195,19 +207,36 @@ def create_document(
         headers={"Content-Type": "application/json"},
     )
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to create document: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to create document: {response.text}", status_code=response.status_code
+        )
     return response.json()
+
+
+def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes, None, None]:
+    response = _api_request(client, "get", f"api/document/download/{document_id}", stream=True)
+    if not response.ok:
+        raise ESignBaseSDKError(
+            f"Failed to download document: {response.text}", status_code=response.status_code
+        )
+
+    for chunk in response.iter_content(chunk_size=8192):
+        yield chunk
 
 
 def delete_document(client: OAuth2Client, document_id: str) -> None:
     response = _api_request(client, "delete", f"api/document/{document_id}")
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to delete document: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to delete document: {response.text}", status_code=response.status_code
+        )
     return None
 
 
 def get_credits(client: OAuth2Client) -> dict[str, Any]:
     response = _api_request(client, "get", "api/credits")
     if not response.ok:
-        raise ESignBaseSDKError(f"Failed to get credits: {response.text}")
+        raise ESignBaseSDKError(
+            f"Failed to get credits: {response.text}", status_code=response.status_code
+        )
     return response.json()
