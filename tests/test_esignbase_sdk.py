@@ -1,3 +1,5 @@
+# pylint: disable=protected-access
+from datetime import datetime
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
@@ -138,7 +140,6 @@ class TestEsignBaseSDK(TestCase):
                 email="a@a.com", first_name="A", last_name="B", role_name="Signer", locale="en"
             )
         ]
-        from datetime import datetime
 
         expiration = datetime(2025, 1, 1, 12, 0, 0)  # naive datetime should be treated as UTC
         res = esignbase_sdk.create_document(
