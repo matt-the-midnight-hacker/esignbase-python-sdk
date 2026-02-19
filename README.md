@@ -188,6 +188,7 @@ Raises:
 ```python
 def create_document(
     client: OAuth2Client,
+    *,
     template_id: str,
     document_name: str,
     recipients: list[Recipient],
@@ -257,7 +258,28 @@ Raises:
     ESignBaseSDKError: If the API request fails
 
 ---
+```python
+def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes]
+```
 
+Download a completed document.
+
+Parameters:
+
+    client: Authenticated OAuth2Client instance
+    document_id: Unique identifier of the document to download
+
+Raises:
+
+    ESignBaseSDKError: If the API request fails
+
+Example Usage:
+```python
+    with open(f"document.pdf", "wb") as f:
+        for chunk in esignbase_sdk.download_document(client, "695e4a4d869ba75efa33aa07"):
+            f.write(chunk)
+```
+---
 ```python
 def get_credits(client: OAuth2Client) -> dict[str, Any]
 ```
