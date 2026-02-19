@@ -1,46 +1,46 @@
-[build-system]
-requires = ["setuptools>=80.9", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "esignbase-sdk"
-version = "1.0.0"
-description = "SDK Package for the eSignBase API"
+version = "1.0.1"
+license = "MIT"
+description = "Python SDK for eSignBase – eIDAS-compliant digital signatures and GDPR-ready electronic signing via REST API."
 authors = [{ name = "Matthias Meß", email = "info@esignbase.com" }]
 readme = "README.md"
-requires-python = ">=3.14,<4.0"
+requires-python = ">=3.10,<4.0"
+
+keywords = [
+  "digital signature",
+  "electronic signature",
+  "eIDAS",
+  "GDPR",
+  "REST API",
+  "document signing",
+  "e-signature",
+  "legal signature",
+  "EU compliance",
+  "python sdk"
+]
+
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Operating System :: OS Independent",
+  "Intended Audience :: Developers",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Topic :: Security :: Cryptography",
+  "Topic :: Office/Business"
+]
 
 dependencies = [
-  "requests>=2.32.5,<3.0.0",
+  "requests>=2.25.0,<3.0.0",
 ]
 
-[project.optional-dependencies]
-dev = [
-  "isort",
-  "black",
-]
-
-[tool.setuptools]
-
-[tool.setuptools.packages]
-find = { where = ["esignbase_sdk"], namespaces = true } # Enable namespace package discovery
-
-
-[tool.setuptools.exclude-package-data]
-"*" = [
-  "__pycache__",
-  "*.pyc",
-  "*.pyo",
-  "*.pyd"
-]
-
-
-[tool.black]
-line-length = 100
-target-version = ['py314']
-
-[tool.isort]
-profile = "black"
-line_length = 100
-known_first_party = []
-classes = ["IO"]
+[project.urls]
+Homepage = "https://esignbase.com"
+Documentation = "https://esignbase.com/en/api_documentation/"
+Source = "https://github.com/matt-the-midnighthacker/esignbase-sdk"

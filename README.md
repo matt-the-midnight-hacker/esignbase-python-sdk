@@ -1,9 +1,26 @@
-# esignbase-python-sdk
-API Client for the [eSignBase](https://esignbase.com) API
+# eSignBase Python SDK
 
-The package provides a small, synchronous client for interacting with the eSignBase API.
+Official Python SDK for integrating **eIDAS-compliant digital signatures** into your application using the eSignBase REST API.
 
-Full REST API documentation is available at https://esignbase.com/en/api_documentation it also shows the format of the returned dictionary data.
+eSignBase provides GDPR-ready electronic signatures with EU-based infrastructure and flexible pay-as-you-go pricing — no subscriptions, no per-seat licenses.
+
+This SDK offers a simple, synchronous client for creating signing requests, managing templates, and retrieving signed documents programmatically.
+
+## Why eSignBase?
+
+- ✅ eIDAS-compliant electronic signatures
+- ✅ GDPR-aligned EU data hosting
+- ✅ Simple REST API
+- ✅ No subscriptions — pay-as-you-go credits
+- ✅ Lightweight and easy to integrate
+
+## Documentation
+
+Full REST API documentation:
+https://esignbase.com/en/api_documentation
+
+A step-by-step integration guide:
+https://esignbase.com/en/blog/rest-api-guide
 
 ### Classes
 
@@ -315,4 +332,15 @@ document_details = get_document(client, document["id"])
 
 # Delete the document (if needed)
 delete_document(client, document["id"])
+```
+
+
+## Developer Notes:
+
+You should work ina venv..
+
+How to build the package:
+```bash
+python -m pip install --upgrade build
+python -m build --wheel
 ```
