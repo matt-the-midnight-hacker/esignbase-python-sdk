@@ -45,3 +45,11 @@ dependencies = [
 Homepage = "https://esignbase.com"
 Documentation = "https://esignbase.com/en/api_documentation/"
 Source = "https://github.com/matt-the-midnight-hacker/esignbase-python-sdk"
+
+[project.optional-dependencies]
+dev = [
+  "pylint",
+  "black",
+  "isort",
+  "pyright",
+]
