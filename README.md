@@ -188,6 +188,7 @@ Raises:
 ```python
 def create_document(
     client: OAuth2Client,
+    *,
     template_id: str,
     document_name: str,
     recipients: list[Recipient],
@@ -258,7 +259,7 @@ Raises:
 
 ---
 ```python
-def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes, None, None]
+def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes]
 ```
 
 Download a completed document.

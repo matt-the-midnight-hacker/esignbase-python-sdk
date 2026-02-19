@@ -63,7 +63,7 @@ class TestEsignBaseSDK(TestCase):
             scope=[esignbase_sdk.Scope.ALL],
         )
         esignbase_sdk.connect(client)
-        self.assertEqual(client._access_token, "abc123")
+        self.assertEqual(client.access_token, "abc123")
 
     @patch("esignbase_sdk.requests.post")
     def test_connect_raises_on_http_error(self, post_mock: Mock):
@@ -95,7 +95,7 @@ class TestEsignBaseSDK(TestCase):
             grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
             scope=[esignbase_sdk.Scope.ALL],
         )
-        client._access_token = "tkn"
+        client.access_token = "tkn"
         res = esignbase_sdk.get_templates(client)
         self.assertEqual(res, [])
 
@@ -131,7 +131,7 @@ class TestEsignBaseSDK(TestCase):
             grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
             scope=[esignbase_sdk.Scope.ALL],
         )
-        client._access_token = "tkn"
+        client.access_token = "tkn"
 
         recipients = [
             esignbase_sdk.Recipient(
@@ -175,7 +175,7 @@ class TestEsignBaseSDK(TestCase):
             grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
             scope=[esignbase_sdk.Scope.ALL],
         )
-        client._access_token = "tkn"
+        client.access_token = "tkn"
         chunks = list(esignbase_sdk.download_document(client, "docid"))
         self.assertEqual(b"".join(chunks), b"part1part2")
 
@@ -211,12 +211,12 @@ class TestEsignBaseSDK(TestCase):
             grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
             scope=[esignbase_sdk.Scope.ALL],
         )
-        client._access_token = "oldtoken"
+        client.access_token = "oldtoken"
 
         res = esignbase_sdk._api_request(client, "get", "api/something")
         self.assertIs(res, resp2)
         self.assertEqual(request_mock.call_count, 2)
-        self.assertEqual(client._access_token, "newtoken")
+        self.assertEqual(client.access_token, "newtoken")
 
     @patch("esignbase_sdk.requests.request")
     def test_get_template_documents_and_credits_error_and_success(self, request_mock: Mock):
@@ -232,7 +232,7 @@ class TestEsignBaseSDK(TestCase):
             grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
             scope=[esignbase_sdk.Scope.ALL],
         )
-        client._access_token = "tkn"
+        client.access_token = "tkn"
         self.assertEqual(esignbase_sdk.get_template(client, "t1"), {"template": 1})
 
         # error cases for get_template
