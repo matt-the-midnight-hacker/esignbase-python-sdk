@@ -112,10 +112,10 @@ def _refresh(client: OAuth2Client):
 
     response = requests.post(
         url=f"{BASE_URL}oauth2/token",
-        data=(
-            f"grant_type=refresh_token"
-            f"&refresh_token={client.refresh_token}"
-        ),
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": client.refresh_token,
+        },
         headers={
             "Authorization": f"Basic {_basic_auth_header(client)}",
             "Content-Type": "application/x-www-form-urlencoded",
