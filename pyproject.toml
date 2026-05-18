@@ -1,6 +1,6 @@
 [project]
 name = "esignbase-sdk"
-version = "1.1.0"
+version = "1.2.0"
 license = "MIT"
 license-files = ["LICENSE"]
 description = "Python SDK for eSignBase – eIDAS-compliant digital signatures and GDPR-ready electronic signing via REST API."
@@ -43,7 +43,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://esignbase.com"
-Documentation = "https://esignbase.com/en/api_documentation/"
+Documentation = "https://esignbase.com/en/api_documentation"
 Source = "https://github.com/matt-the-midnight-hacker/esignbase-python-sdk"
 
 [project.optional-dependencies]

@@ -1,276 +1,367 @@
 # pylint: disable=protected-access
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from unittest import TestCase
 from unittest.mock import Mock, patch
 
 import esignbase_sdk
 
 
-class TestEsignBaseSDK(TestCase):
+def _make_client(**kwargs) -> esignbase_sdk.OAuth2Client:
+    defaults = {"id": "test_id", "secret": "test_secret", "scope": [esignbase_sdk.Scope.ALL]}
+    return esignbase_sdk.OAuth2Client(**{**defaults, **kwargs})
 
-    def test_client(self):
-        client = esignbase_sdk.OAuth2Client(
-            id="test_id",
-            secret="test_secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
-        )
+
+def _connected_client(**kwargs) -> esignbase_sdk.OAuth2Client:
+    client = _make_client(**kwargs)
+    client.access_token = "tkn"
+    client._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=300)
+    return client
+
+
+class TestOAuth2Client(TestCase):
+
+    def test_client_fields(self):
+        client = _make_client()
         self.assertEqual(client.id, "test_id")
         self.assertEqual(client.secret, "test_secret")
-        self.assertEqual(client.grant_type, esignbase_sdk.GrantType.CLIENT_CREDENTIALS)
         self.assertEqual(client.scope, [esignbase_sdk.Scope.ALL])
 
-    def test_validate_requires_scope_and_credentials(self):
-        # missing scope
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[],
-        )
+    def test_is_connected(self):
+        client = _make_client()
+        self.assertFalse(client.is_connected)
+        client.access_token = "tkn"
+        self.assertTrue(client.is_connected)
+
+    def test_is_token_expired_when_no_expiry(self):
+        client = _make_client()
+        self.assertTrue(client.is_token_expired)
+
+    def test_is_token_expired_when_past(self):
+        client = _make_client()
+        client._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        self.assertTrue(client.is_token_expired)
+
+    def test_is_token_expired_within_buffer(self):
+        # within 30-second buffer window should be considered expired
+        client = _make_client()
+        client._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=20)
+        self.assertTrue(client.is_token_expired)
+
+    def test_is_token_not_expired(self):
+        client = _make_client()
+        client._token_expires_at = datetime.now(timezone.utc) + timedelta(seconds=60)
+        self.assertFalse(client.is_token_expired)
+
+
+class TestValidate(TestCase):
+
+    def test_missing_scope(self):
+        client = _make_client(scope=[])
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk._validate(client)
 
-        # missing id
-        client = esignbase_sdk.OAuth2Client(
-            id="",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.READ],
-        )
+    def test_missing_id(self):
+        client = _make_client(id="")
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk._validate(client)
 
-        # missing secret
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.READ],
-        )
+    def test_missing_secret(self):
+        client = _make_client(secret="")
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk._validate(client)
+
+    def test_valid_client_passes(self):
+        client = _make_client()
+        esignbase_sdk._validate(client)  # should not raise
+
+
+class TestConnect(TestCase):
 
     @patch("esignbase_sdk.requests.post")
-    def test_connect_sets_access_token_on_success(self, post_mock: Mock):
-        mock_resp = Mock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"access_token": "abc123"}
-        post_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
+    def test_sets_access_and_refresh_token(self, post_mock: Mock):
+        post_mock.return_value = Mock(
+            ok=True,
+            json=Mock(
+                return_value={
+                    "access_token": "abc123",
+                    "refresh_token": "ref456",
+                    "expires_in": 300,
+                }
+            ),
         )
+        client = _make_client()
         esignbase_sdk.connect(client)
         self.assertEqual(client.access_token, "abc123")
+        self.assertEqual(client.refresh_token, "ref456")
+        self.assertIsNotNone(client._token_expires_at)
 
     @patch("esignbase_sdk.requests.post")
-    def test_connect_raises_on_http_error(self, post_mock: Mock):
-        mock_resp = Mock()
-        mock_resp.ok = False
-        mock_resp.text = "bad"
-        post_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
+    def test_clears_old_tokens_before_connecting(self, post_mock: Mock):
+        post_mock.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={"access_token": "new"}),
         )
+        client = _make_client()
+        client.access_token = "old"
+        client.refresh_token = "old_ref"
+        esignbase_sdk.connect(client)
+        self.assertEqual(client.access_token, "new")
+
+    @patch("esignbase_sdk.requests.post")
+    def test_raises_on_http_error(self, post_mock: Mock):
+        post_mock.return_value = Mock(ok=False, text="bad request")
+        client = _make_client()
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk.connect(client)
 
-    @patch("esignbase_sdk.requests.request")
-    def test_get_templates_success_and_error(self, get_mock: Mock):
-        # success
-        mock_resp = Mock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = []
-        get_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
+    @patch("esignbase_sdk.requests.post")
+    def test_token_expiry_is_set(self, post_mock: Mock):
+        post_mock.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={"access_token": "t", "expires_in": 300}),
         )
+        client = _make_client()
+        before = datetime.now(timezone.utc)
+        esignbase_sdk.connect(client)
+        after = datetime.now(timezone.utc)
+        assert client._token_expires_at
+        self.assertGreater(client._token_expires_at, before)
+        self.assertLessEqual(client._token_expires_at, after + timedelta(seconds=300))
+
+
+class TestRefresh(TestCase):
+
+    @patch("esignbase_sdk.requests.post")
+    def test_refresh_updates_tokens(self, post_mock: Mock):
+        post_mock.return_value = Mock(
+            ok=True,
+            json=Mock(return_value={"access_token": "new_tkn", "refresh_token": "new_ref"}),
+        )
+        client = _make_client()
+        client.access_token = "old_tkn"
+        client.refresh_token = "old_ref"
+        esignbase_sdk._refresh(client)
+        self.assertEqual(client.access_token, "new_tkn")
+        self.assertEqual(client.refresh_token, "new_ref")
+
+    @patch("esignbase_sdk.connect")
+    @patch("esignbase_sdk.requests.post")
+    def test_refresh_falls_back_to_connect_on_failure(self, post_mock: Mock, connect_mock: Mock):
+        post_mock.return_value = Mock(ok=False, text="invalid refresh token")
+        client = _make_client()
+        client.refresh_token = "bad_ref"
+        esignbase_sdk._refresh(client)
+        connect_mock.assert_called_once_with(client)
+
+    @patch("esignbase_sdk.connect")
+    def test_refresh_calls_connect_when_no_refresh_token(self, connect_mock: Mock):
+        client = _make_client()
+        client.refresh_token = None
+        esignbase_sdk._refresh(client)
+        connect_mock.assert_called_once_with(client)
+
+
+class TestEnsureFresh(TestCase):
+
+    @patch("esignbase_sdk._refresh")
+    def test_refreshes_when_token_expired(self, refresh_mock: Mock):
+        client = _make_client()
         client.access_token = "tkn"
-        res = esignbase_sdk.get_templates(client)
-        self.assertEqual(res, [])
+        client._token_expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)
+        esignbase_sdk._ensure_fresh(client)
+        refresh_mock.assert_called_once_with(client)
 
-        # error
-        mock_resp = Mock()
-        mock_resp.ok = False
-        mock_resp.text = "err"
-        get_mock.return_value = mock_resp
+    @patch("esignbase_sdk._refresh")
+    def test_no_refresh_when_token_fresh(self, refresh_mock: Mock):
+        client = _connected_client()
+        esignbase_sdk._ensure_fresh(client)
+        refresh_mock.assert_not_called()
 
+    @patch("esignbase_sdk._refresh")
+    def test_refreshes_when_not_connected(self, refresh_mock: Mock):
+        client = _make_client()
+        esignbase_sdk._ensure_fresh(client)
+        refresh_mock.assert_called_once_with(client)
+
+
+class TestApiRequest(TestCase):
+
+    @patch("esignbase_sdk._ensure_fresh")
+    @patch("esignbase_sdk.requests.request")
+    def test_sets_authorization_header(self, request_mock: Mock, _ensure_fresh_mock: Mock):
+        request_mock.return_value = Mock(ok=True)
+        client = _connected_client()
+        esignbase_sdk._api_request(client, "get", "api/something")
+        _, kwargs = request_mock.call_args
+        self.assertEqual(kwargs["headers"]["Authorization"], "Bearer tkn")
+
+    @patch("esignbase_sdk._ensure_fresh")
+    @patch("esignbase_sdk.requests.request")
+    def test_calls_ensure_fresh(self, request_mock: Mock, ensure_fresh_mock: Mock):
+        request_mock.return_value = Mock(ok=True)
+        client = _connected_client()
+        esignbase_sdk._api_request(client, "get", "api/something")
+        ensure_fresh_mock.assert_called_once_with(client)
+
+
+class TestGetTemplates(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value=[]))
+        client = _connected_client()
+        self.assertEqual(esignbase_sdk.get_templates(client), [])
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err")
+        client = _connected_client()
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk.get_templates(client)
 
-    def test_validate_auth_code_requires_credentials(self):
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.AUTHORIZATION_CODE,
-            scope=[esignbase_sdk.Scope.READ],
-        )
-        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
-            esignbase_sdk._validate(client)
+
+class TestGetTemplate(TestCase):
 
     @patch("esignbase_sdk.requests.request")
-    def test_create_document_includes_metadata_and_expiration(self, request_mock: Mock):
-        mock_resp = Mock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"id": "doc1"}
-        request_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
-        )
-        client.access_token = "tkn"
-
-        recipients = [
-            esignbase_sdk.Recipient(
-                email="a@a.com", first_name="A", last_name="B", role_name="Signer", locale="en"
-            )
-        ]
-
-        expiration = datetime(2025, 1, 1, 12, 0, 0)  # naive datetime should be treated as UTC
-        res = esignbase_sdk.create_document(
-            client,
-            template_id="tpl",
-            document_name="Doc",
-            recipients=recipients,
-            user_defined_metadata={"k": "v", "n": 1},
-            expiration_date=expiration,
-        )
-
-        self.assertEqual(res, {"id": "doc1"})
-        # inspect the json payload passed to requests.request
-        _, kwargs = request_mock.call_args
-        json_payload = kwargs.get("json")
-        self.assertIsNotNone(json_payload)
-        self.assertEqual(json_payload["user_defined_metadata"], {"k": "v", "n": 1})
-        self.assertEqual(json_payload["name"], "Doc")
-        self.assertEqual(json_payload["template_id"], "tpl")
-        self.assertEqual(json_payload["recipients"][0]["email"], "a@a.com")
-        self.assertTrue(json_payload["expiration_date"].endswith("+0000"))
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value={"id": "t1"}))
+        client = _connected_client()
+        self.assertEqual(esignbase_sdk.get_template(client, "t1"), {"id": "t1"})
 
     @patch("esignbase_sdk.requests.request")
-    def test_download_document_streams_and_errors(self, request_mock: Mock):
-        # success streaming
-        mock_resp = Mock()
-        mock_resp.ok = True
-        mock_resp.iter_content = Mock(return_value=[b"part1", b"part2"])
-        request_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
-        )
-        client.access_token = "tkn"
-        chunks = list(esignbase_sdk.download_document(client, "docid"))
-        self.assertEqual(b"".join(chunks), b"part1part2")
-
-        # error case
-        mock_resp = Mock()
-        mock_resp.ok = False
-        mock_resp.text = "err"
-        request_mock.return_value = mock_resp
-        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
-            list(esignbase_sdk.download_document(client, "docid"))
-
-    @patch("esignbase_sdk.connect")
-    @patch("esignbase_sdk.requests.request")
-    def test_api_request_reconnects_on_401(self, request_mock: Mock, connect_mock: Mock):
-        # prepare responses: first is 401, second is successful
-        resp1 = Mock()
-        resp1.status_code = 401
-        resp1.ok = False
-        resp2 = Mock()
-        resp2.status_code = 200
-        resp2.ok = True
-        resp2.json.return_value = {"ok": True}
-        request_mock.side_effect = [resp1, resp2]
-
-        def do_connect(c):
-            c.access_token = "newtoken"
-
-        connect_mock.side_effect = do_connect
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
-        )
-        client.access_token = "oldtoken"
-
-        res = esignbase_sdk._api_request(client, "get", "api/something")
-        self.assertIs(res, resp2)
-        self.assertEqual(request_mock.call_count, 2)
-        self.assertEqual(client.access_token, "newtoken")
-
-    @patch("esignbase_sdk.requests.request")
-    def test_get_template_documents_and_credits_error_and_success(self, request_mock: Mock):
-        # success template
-        mock_resp = Mock()
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"template": 1}
-        request_mock.return_value = mock_resp
-
-        client = esignbase_sdk.OAuth2Client(
-            id="id",
-            secret="secret",
-            grant_type=esignbase_sdk.GrantType.CLIENT_CREDENTIALS,
-            scope=[esignbase_sdk.Scope.ALL],
-        )
-        client.access_token = "tkn"
-        self.assertEqual(esignbase_sdk.get_template(client, "t1"), {"template": 1})
-
-        # error cases for get_template
-        mock_resp = Mock()
-        mock_resp.ok = False
-        mock_resp.text = "err"
-        mock_resp.status_code = 500
-        request_mock.return_value = mock_resp
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=404)
+        client = _connected_client()
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
             esignbase_sdk.get_template(client, "t1")
 
-        # documents success
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"docs": []}
-        request_mock.return_value = mock_resp
-        self.assertEqual(esignbase_sdk.get_documents(client, 10, 0), {"docs": []})
 
-        # document error
-        mock_resp.ok = False
-        mock_resp.text = "err"
-        request_mock.return_value = mock_resp
+class TestGetDocuments(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(
+            ok=True, json=Mock(return_value={"documents": [], "count": 0})
+        )
+        client = _connected_client()
+        self.assertEqual(esignbase_sdk.get_documents(client, 10, 0), {"documents": [], "count": 0})
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=500)
+        client = _connected_client()
         with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
-            esignbase_sdk.get_documents(client, 1, 0)
+            esignbase_sdk.get_documents(client, 10, 0)
 
-        # get_document success
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"doc": 1}
-        request_mock.return_value = mock_resp
-        self.assertEqual(esignbase_sdk.get_document(client, "d1"), {"doc": 1})
 
-        # delete_document success
-        mock_resp.ok = True
-        request_mock.return_value = mock_resp
+class TestGetDocument(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value={"id": "d1"}))
+        client = _connected_client()
+        self.assertEqual(esignbase_sdk.get_document(client, "d1"), {"id": "d1"})
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=404)
+        client = _connected_client()
+        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
+            esignbase_sdk.get_document(client, "d1")
+
+
+class TestCreateDocument(TestCase):
+
+    def _recipients(self):
+        return [
+            esignbase_sdk.Recipient(
+                email="a@a.com", first_name="A", last_name="B", role_name="signee_1", locale="en"
+            )
+        ]
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value={"document_id": "doc1"}))
+        client = _connected_client()
+        res = esignbase_sdk.create_document(
+            client, template_id="tpl", document_name="Doc", recipients=self._recipients()
+        )
+        self.assertEqual(res, {"document_id": "doc1"})
+
+    @patch("esignbase_sdk.requests.request")
+    def test_includes_metadata_and_expiration(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value={"document_id": "doc1"}))
+        client = _connected_client()
+        expiration = datetime(2025, 1, 1, 12, 0, 0)  # naive — should be treated as UTC
+        esignbase_sdk.create_document(
+            client,
+            template_id="tpl",
+            document_name="Doc",
+            recipients=self._recipients(),
+            user_defined_metadata={"k": "v"},
+            expiration_date=expiration,
+        )
+        _, kwargs = request_mock.call_args
+        payload = kwargs["json"]
+        self.assertEqual(payload["user_defined_metadata"], {"k": "v"})
+        self.assertTrue(payload["expiration_date"].endswith("+0000"))
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=400)
+        client = _connected_client()
+        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
+            esignbase_sdk.create_document(
+                client, template_id="tpl", document_name="Doc", recipients=self._recipients()
+            )
+
+
+class TestDownloadDocument(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_streams_chunks(self, request_mock: Mock):
+        request_mock.return_value = Mock(
+            ok=True, iter_content=Mock(return_value=[b"part1", b"part2"])
+        )
+        client = _connected_client()
+        chunks = list(esignbase_sdk.download_document(client, "docid"))
+        self.assertEqual(b"".join(chunks), b"part1part2")
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=404)
+        client = _connected_client()
+        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
+            list(esignbase_sdk.download_document(client, "docid"))
+
+
+class TestDeleteDocument(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True)
+        client = _connected_client()
         self.assertIsNone(esignbase_sdk.delete_document(client, "d1"))
 
-        # get_credits success
-        mock_resp.ok = True
-        mock_resp.json.return_value = {"credits": 5}
-        request_mock.return_value = mock_resp
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=404)
+        client = _connected_client()
+        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
+            esignbase_sdk.delete_document(client, "d1")
+
+
+class TestGetCredits(TestCase):
+
+    @patch("esignbase_sdk.requests.request")
+    def test_success(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=True, json=Mock(return_value={"credits": 5}))
+        client = _connected_client()
         self.assertEqual(esignbase_sdk.get_credits(client), {"credits": 5})
+
+    @patch("esignbase_sdk.requests.request")
+    def test_error(self, request_mock: Mock):
+        request_mock.return_value = Mock(ok=False, text="err", status_code=500)
+        client = _connected_client()
+        with self.assertRaises(esignbase_sdk.ESignBaseSDKError):
+            esignbase_sdk.get_credits(client)
