@@ -207,7 +207,7 @@ def get_document(client: OAuth2Client, document_id: str) -> dict[str, Any]:
     return response.json()
 
 
-def create_document(
+def create_document(  # pylint: disable=too-many-arguments
     client: OAuth2Client,
     *,
     template_id: str,
