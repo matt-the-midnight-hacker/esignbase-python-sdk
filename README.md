@@ -1,369 +1,211 @@
 # eSignBase Python SDK
 
-Official Python SDK for integrating **eIDAS-compliant digital signatures** into your application using the eSignBase REST API.
+Official Python SDK for integrating **eIDAS-compliant electronic signatures** into your application using the [eSignBase](https://esignbase.com) REST API.
 
 eSignBase provides GDPR-ready electronic signatures with EU-based infrastructure and flexible pay-as-you-go pricing — no subscriptions, no per-seat licenses.
-
-This SDK offers a simple, synchronous client for creating signing requests, managing templates, and retrieving signed documents programmatically.
 
 ## Why eSignBase?
 
 - ✅ eIDAS-compliant electronic signatures
 - ✅ GDPR-aligned EU data hosting
-- ✅ Simple REST API
 - ✅ No subscriptions — pay-as-you-go credits
-- ✅ Lightweight and easy to integrate
+- ✅ Automatic token refresh — no manual token management needed
+- ✅ Lightweight, synchronous client with no heavy dependencies
 
-## Documentation
+## Installation
 
-Full REST API documentation:
-https://esignbase.com/en/api_documentation
-
-A step-by-step integration guide:
-https://esignbase.com/en/blog/rest-api-guide
-
-### Classes
-
-**GrantType** (Enum)
-
-Defines the available OAuth2 grant types:
-
-* CLIENT_CREDENTIALS: For server-to-server authentication
-* AUTHORIZATION_CODE: For user-specific authentication
-
-
-**Scope** (Enum)
-
-Defines the available API permission scopes:
-
-* ALL: Full access to all API endpoints
-* READ: Read-only access
-* CREATE_DOCUMENT: Permission to create documents
-* DELETE: Permission to delete documents
-* SANDBOX: Access to the sandbox environment, use this scope for testing
-
-**OAuth2Client**
-
-Main client class that stores authentication credentials and state.
-
-Attributes:
-```python
-id (str) # Client ID from ESignBase
-secret (str) # Client secret from ESignBase
-grant_type (GrantType) # OAuth2 grant type to use
-user_name (Optional[str]) # Username (required AUTHORIZATION_CODE)
-password (Optional[str]) # Password (required AUTHORIZATION_CODE)
-scope (list[Scope]) # List of requested API scopes
-```
-Retrieve your Client ID and Client Secret at https://app.esignbase.com/oauth2/client by creating an
-OAuth2 Client Configuration.
-
-**Recipient**
-
-Represents a document recipient/signer.
-`role_name` value is defined during template creation in the template editor.
-
-Attributes:
-```python
-email (str) # Recipient's email address
-first_name (str) # Recipient's first name
-last_name (str) # Recipient's last name
-role_name (str) # Role name (e.g., "Signer", "Viewer")
-locale (str) # Locale code ("de", "en", "es")
+```bash
+pip install esignbase-sdk
 ```
 
-**ESignBaseSDKError** (Exception)
+Requires Python 3.10 or higher.
 
-Custom exception class for API-related errors.
-
-### Functions
+## Quickstart
 
 ```python
-def connect(client: OAuth2Client) -> None
-```
-
-Authenticates with the ESignBase API
-
-Parameters:
-
-    client: Configured OAuth2Client instance
-
-Raises:
-
-    ESignBaseSDKError: If authentication fails or validation fails
-
-Example:
-```python
-client = OAuth2Client(
-    id="your_client_id",
-    secret="your_client_secret",
-    grant_type=GrantType.CLIENT_CREDENTIALS,
-    scope=[Scope.ALL],
-)
-connect(client)
-```
----
-
-```python
-def get_templates(client: OAuth2Client) -> list[dict[str, Any]]
-```
-
-
-Retrieves a list of available document templates.
-
-Parameters:
-```
-client: Authenticated OAuth2Client instance
-```
-
-Returns A list of dictionaries containing template data.
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
----
-
-```python
-def get_template(client: OAuth2Client, template_id: str) -> dict[str, Any]
-```
-
-Retrieves details of a specific template.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    template_id: Unique identifier of the template
-
-Returns:
-    Dictionary containing template details
-
-Raises:
-    ESignBaseSDKError: If the API request fails
-
----
-
-```python
-def get_documents(client: OAuth2Client, limit: int, offset: int) -> dict[str, Any]
-```
-Retrieves a paginated list of documents.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    limit: Maximum number of documents to return
-    offset: Pagination offset
-
-Returns:
-
-    Dictionary containing document list and pagination info `{documents: [...]}`
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
----
-
-```python
-def get_document(client: OAuth2Client, document_id: str) -> dict[str, Any]
-```
-
-Retrieves details of a specific document.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    document_id: Unique identifier of the document
-
-Returns:
-
-    Dictionary containing document details
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
----
-
-```python
-def create_document(
-    client: OAuth2Client,
-    *,
-    template_id: str,
-    document_name: str,
-    recipients: list[Recipient],
-    user_defined_metadata: Optional[dict[str, str | int]] = None,
-    expiration_date: Optional[datetime] = None
-) -> dict[str, Any]
-```
-
-Creates a new document from a template.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    template_id: ID of the template to use
-    document_name: Name for the new document
-    recipients: List of Recipient objects
-    user_defined_metadata: Optional metadata to attach to the document
-    expiration_date: Optional expiration date for the document
-
-Returns:
-
-    Dictionary containing the created document id and current document status
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
-Example:
-
-```python
-recipients = [
-    Recipient(
-        email="signer@example.com",
-        first_name="John",
-        last_name="Doe",
-        role_name="signer",
-        locale="de"
-    )
-]
-
-document = create_document(
-    client=client,
-    template_id="template_123",
-    document_name="Contract Agreement",
-    recipients=recipients,
-    user_defined_metadata={"contract_id": "CTR-2024-001"},
-    expiration_date=datetime(2024, 12, 31)
-)
-
-```
-
----
-
-```python
-def delete_document(client: OAuth2Client, document_id: str) -> None
-```
-
-Deletes a specific document.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    document_id: Unique identifier of the document to delete
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
----
-```python
-def download_document(client: OAuth2Client, document_id: str) -> Generator[bytes]
-```
-
-Download a completed document.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-    document_id: Unique identifier of the document to download
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
-Example Usage:
-```python
-    with open(f"document.pdf", "wb") as f:
-        for chunk in esignbase_sdk.download_document(client, "695e4a4d869ba75efa33aa07"):
-            f.write(chunk)
-```
----
-```python
-def get_credits(client: OAuth2Client) -> dict[str, Any]
-```
-
-Retrieves credit balance information.
-
-Parameters:
-
-    client: Authenticated OAuth2Client instance
-
-Returns:
-
-    Dictionary containing credit balance data
-
-Raises:
-
-    ESignBaseSDKError: If the API request fails
-
-Error Handling
-
-All functions raise ESignBaseSDKError exceptions for API errors, network issues, or validation failures. Always wrap API calls in try-except blocks:
-
-```python
-try:
-    templates = get_templates(client)
-except ESignBaseSDKError as e:
-    print(f"API Error: {e}")
-```
-
-Complete Example
-
-
-```python
-
-from datetime import datetime
 import esignbase_sdk
 
-# Setup client
+# 1. Create and authenticate a client
 client = esignbase_sdk.OAuth2Client(
     id="your_client_id",
     secret="your_client_secret",
-    grant_type=GrantType.CLIENT_CREDENTIALS,
-    scope=[Scope.CREATE_DOCUMENT, Scope.READ]
+    scope=[esignbase_sdk.Scope.ALL],
 )
-
-# Authenticate
 esignbase_sdk.connect(client)
 
-# Get available templates
+# 2. List available templates
 templates = esignbase_sdk.get_templates(client)
 
-# Create a document
+# 3. Send a document for signature
 recipients = [
     esignbase_sdk.Recipient(
         email="alice@example.com",
         first_name="Alice",
         last_name="Smith",
-        role_name="Signer",
-        locale="en"
+        role_name="signee_1",  # must match a role defined in the template
+        locale="en",
     )
 ]
-template_id = templates[0]["id"]
 
 document = esignbase_sdk.create_document(
     client=client,
-    template_id=template_id,
+    template_id=templates[0]["id"],
     document_name="NDA Agreement",
-    recipients=recipients
+    recipients=recipients,
 )
 
-# Check document status
-document_details = esignbase_sdk.get_document(client, document["id"])
-
-# Delete the document (if needed)
-esignbase_sdk.delete_document(client, document["id"])
+print(document)  # {"document_id": "...", "status": "DRAFT"}
 ```
 
+Retrieve your Client ID and Client Secret at [app.esignbase.com/oauth2/client](https://app.esignbase.com/oauth2/client).
 
-## Developer Notes:
+## Authentication
 
-To build the package, run the following commands inside a virtual environment from the directory
-containing this README file.
+The SDK uses the OAuth2 **Client Credentials** grant. Call `connect()` once to authenticate — the SDK then manages token expiry and refresh automatically for all subsequent API calls.
 
-```bash
-python -m pip install --upgrade build
-python -m build --wheel
+```python
+client = esignbase_sdk.OAuth2Client(
+    id="your_client_id",
+    secret="your_client_secret",
+    scope=[esignbase_sdk.Scope.ALL],
+)
+esignbase_sdk.connect(client)
 ```
+
+### Sandbox Mode
+
+Use the `SANDBOX` scope to test without consuming credits. Sandbox mode uses templates created in your sandbox environment.
+
+```python
+client = esignbase_sdk.OAuth2Client(
+    id="your_client_id",
+    secret="your_client_secret",
+    scope=[esignbase_sdk.Scope.ALL, esignbase_sdk.Scope.SANDBOX],
+)
+esignbase_sdk.connect(client)
+```
+
+## API Reference
+
+### Scopes
+
+| Scope | Description |
+|---|---|
+| `Scope.ALL` | Full access (read, create, delete). Does not include sandbox. |
+| `Scope.READ` | Read documents and templates. |
+| `Scope.CREATE_DOCUMENT` | Create and send documents for signature. |
+| `Scope.DELETE` | Delete documents. |
+| `Scope.SANDBOX` | Sandbox mode — no credits consumed. |
+
+### `connect(client)`
+
+Authenticates with the eSignBase API and stores the access token on the client. Raises `ESignBaseSDKError` if authentication fails.
+
+### `get_templates(client)`
+
+Returns a list of all available templates.
+
+```python
+templates = esignbase_sdk.get_templates(client)
+# [{"id": "...", "filename": "contract.pdf", "form_role_names": ["signee_1"], ...}]
+```
+
+### `get_template(client, template_id)`
+
+Returns details for a single template.
+
+### `get_documents(client, limit, offset)`
+
+Returns a paginated list of documents.
+
+```python
+result = esignbase_sdk.get_documents(client, limit=50, offset=0)
+# {"documents": [...], "count": 120}
+```
+
+### `get_document(client, document_id)`
+
+Returns details for a single document, including its current status.
+
+### `create_document(client, *, template_id, document_name, recipients, user_defined_metadata=None, expiration_date=None)`
+
+Creates a new document from a template and sends it to recipients.
+
+`recipients` must include one `Recipient` per role defined in the template's `form_role_names`. `user_defined_metadata` is an optional `dict[str, str]` for attaching your own data (e.g. internal IDs) to the document.
+
+```python
+from datetime import datetime
+
+document = esignbase_sdk.create_document(
+    client=client,
+    template_id="your_template_id",
+    document_name="Employment Contract",
+    recipients=[
+        esignbase_sdk.Recipient(
+            email="bob@example.com",
+            first_name="Bob",
+            last_name="Jones",
+            role_name="signee_1",
+            locale="de",
+        )
+    ],
+    user_defined_metadata={"internal_id": "EMP-2024-042"},
+    expiration_date=datetime(2025, 12, 31),
+)
+```
+
+### `download_document(client, document_id)`
+
+Streams a completed, signed PDF. Only available once the document status is `DIGITAL_SIGNATURE_CREATED` or `COMPLETED`.
+
+```python
+with open("signed_contract.pdf", "wb") as f:
+    for chunk in esignbase_sdk.download_document(client, document["document_id"]):
+        f.write(chunk)
+```
+
+### `delete_document(client, document_id)`
+
+Deletes a document. Returns `None` on success.
+
+### `get_credits(client)`
+
+Returns the current credit balance.
+
+```python
+balance = esignbase_sdk.get_credits(client)
+# {"credits": 42}
+```
+
+## Error Handling
+
+All functions raise `ESignBaseSDKError` on failure. The exception includes a `status_code` attribute with the HTTP status code where applicable.
+
+```python
+try:
+    document = esignbase_sdk.create_document(...)
+except esignbase_sdk.ESignBaseSDKError as e:
+    print(f"Error {e.status_code}: {e}")
+```
+
+## Document Statuses
+
+| Status | Description |
+|---|---|
+| `DRAFT` | Created but not yet sent. |
+| `SENT` | Sent to all recipients. |
+| `PARTIALLY_SIGNED` | Signed by some recipients. |
+| `COMPLETED` | Signing process complete. |
+| `VOIDED` | Document expired or voided. |
+
+Full status list available in the [API documentation](https://esignbase.com/en/api_documentation/).
+
+## Further Reading
+
+- [Full API Documentation](https://esignbase.com/en/api_documentation/)
+- [Step-by-step REST API guide](https://esignbase.com/blog/rest-api-guide)
+- [npm package (Node.js SDK)](https://www.npmjs.com/package/esignbase-sdk)
+
+## License
+
+MIT
